@@ -419,6 +419,19 @@ const Audio = (() => {
     return ctx;
   }
 
+  /* iOS Safari requires the AudioContext to be resumed inside a user
+     gesture. We call this from the Start button before the timer begins. */
+  function unlock() {
+    const c = getCtx();
+    if (c.state === 'suspended') c.resume();
+    /* Play a silent buffer — this is the only reliable iOS unlock trick */
+    const buf = c.createBuffer(1, 1, 22050);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.connect(c.destination);
+    src.start(0);
+  }
+
   function tone(freq, startOffset, dur, vol, type, fadeOut) {
     const c = getCtx();
     const osc  = c.createOscillator();
@@ -436,6 +449,7 @@ const Audio = (() => {
   }
 
   return {
+    unlock,
     beep1() {
       tone(880, 0.00, 0.10, 0.25, 'sine');
       tone(880, 0.15, 0.10, 0.25, 'sine');
@@ -525,7 +539,7 @@ const Timer = (() => {
       display.classList.add('over');
       status.className   = 'status-text over';
       status.textContent = 'overdeveloping';
-      Audio.beep3(); logEvent('ev3', 'End of development - no more end remainders');
+      Audio.beep3(); logEvent('ev3', 'End of development');
 
     } else {
       /* Negative — overdevelopment */
@@ -546,6 +560,7 @@ const Timer = (() => {
   return {
     start() {
       if (running) return;
+      Audio.unlock();  /* must be called synchronously inside a user gesture — iOS Safari requirement */
       const m = parseInt(document.getElementById('inp-min').value) || 0;
       const s = parseInt(document.getElementById('inp-sec').value) || 0;
       totalSecs = m * 60 + s;
