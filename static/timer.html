@@ -467,6 +467,40 @@ const Audio = (() => {
 })();
 
 /* ═══════════════════════════════════════════════════════════════
+   WAKE LOCK
+   Prevents the screen from sleeping while the timer is running.
+   Supported on iOS Safari 16.4+, Chrome for Android, and most
+   modern browsers. Gracefully ignored where unavailable.
+   ═══════════════════════════════════════════════════════════════ */
+const WakeLock = (() => {
+  let sentinel = null;
+
+  async function acquire() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      sentinel = await navigator.wakeLock.request('screen');
+      sentinel.addEventListener('release', () => { sentinel = null; });
+    } catch (e) {
+      sentinel = null;
+    }
+  }
+
+  function release() {
+    if (sentinel) { sentinel.release(); sentinel = null; }
+  }
+
+  /* Re-acquire after the page becomes visible again (e.g. user
+     switches back from another app while timer is still running) */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sentinel === null) {
+      acquire();
+    }
+  });
+
+  return { acquire, release };
+})();
+
+/* ═══════════════════════════════════════════════════════════════
    TIMER ENGINE
    Counts down to 0, fires audio/visual events, then continues
    counting upward (negative = overdevelopment) until stopped.
@@ -561,6 +595,7 @@ const Timer = (() => {
     start() {
       if (running) return;
       Audio.unlock();  /* must be called synchronously inside a user gesture — iOS Safari requirement */
+      WakeLock.acquire();
       const m = parseInt(document.getElementById('inp-min').value) || 0;
       const s = parseInt(document.getElementById('inp-sec').value) || 0;
       totalSecs = m * 60 + s;
@@ -583,6 +618,7 @@ const Timer = (() => {
       clearInterval(handle);
       handle  = null;
       running = false;
+      WakeLock.release();
       document.getElementById('inp-min').disabled   = false;
       document.getElementById('inp-sec').disabled   = false;
       document.getElementById('btn-start').disabled = false;
