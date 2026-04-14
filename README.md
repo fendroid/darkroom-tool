@@ -1,6 +1,6 @@
-# Darkroom Chemical Mixer Calculator
+# Darkroom Toolkit
 
-A thermodynamic temperature mixing calculator for analog film photographers. Instead of waiting for chemicals to reach the right temperature in a water bath, this tool tells you exactly how much cold water and warm water to combine so that the resulting mixture — including the chemical concentrate — hits your target temperature instantly.
+A small web-based toolkit for analog film photographers, designed to run locally on a Raspberry Pi or any machine with Docker. It consists of two tools: a thermodynamic temperature mixing calculator for preparing chemicals at the correct temperature, and a development timer with audio agitation reminders.
 
 ---
 
@@ -35,12 +35,19 @@ m_warm = m_water − m_cold
 
 ## Features
 
+**Chemical Mixer**
 - **Interactive CLI** — run without arguments, enter values one by one
 - **Non-interactive CLI** — pass all arguments as flags, scriptable
 - **Web interface** — minimal dark-themed UI served locally, works in any browser
-- **Docker support** — runs on Raspberry Pi or any ARM/x86 machine
 - **Input validation** — catches impossible temperature targets and warns about negative volumes
 - **Verification** — always reports the actual calculated mixture temperature as a sanity check
+
+**Development Timer**
+- **Countdown** with configurable minutes and seconds
+- **Three distinct audio signals** synthesised entirely in the browser via Web Audio API — no server connection required
+- **Overdevelopment tracking** — at 0:00 the timer continues upward with a negative sign, so you always know how far over you are
+- **Event log** — timestamped record of every signal fired during the session
+- **Docker support** — runs on Raspberry Pi or any ARM/x86 machine
 
 ---
 
@@ -129,7 +136,31 @@ Start the server:
 python server.py
 ```
 
-Then open `http://localhost:5050` in a browser. On a Raspberry Pi on your local network, access it from any device at `http://<pi-ip>:5050`.
+Then open `http://localhost:5000` in a browser. On a Raspberry Pi on your local network, access it from any device at `http://<pi-ip>:5000`.
+
+The mixer and timer are linked — a button at the bottom of each page navigates between them.
+
+---
+
+## Development Timer
+
+The timer is available at `/timer.html` and runs entirely client-side — the audio engine uses the Web Audio API and requires no server connection after the page loads.
+
+### Signals
+
+| Signal | When | Purpose |
+|---|---|---|
+| Beep 1 (double pip, 880 Hz) | At 0:30, then every 60 s | Agitation reminder |
+| Beep 2 (descending, 660→550 Hz) | At 10 s remaining; every 60 s if overdeveloping | Pour-off warning |
+| Beep 3 (triple tone, descending) | At 0:00 | End of development |
+
+### Agitation logic
+
+The first 30 seconds of development require continuous agitation. At the 0:30 mark, Beep 1 fires and the log reads "Stop agitation — let tank rest". After that, Beep 1 fires every 60 seconds as a prompt to agitate again for approximately 10 seconds.
+
+### Overdevelopment
+
+When the timer reaches 0:00, Beep 3 fires and the display turns red and continues counting upward with a negative sign (e.g. -0:05, -0:10...). Beep 2 fires every 60 seconds as a reminder. Press Stop to end the session.
 
 ---
 
@@ -164,7 +195,8 @@ The calculation assumes all components have the same specific heat capacity as w
 ├── app.py            # Calculator logic + CLI + Flask API
 ├── server.py         # Web server entry point
 ├── static/
-│   └── index.html    # Web frontend (single file, no build step)
+│   ├── index.html    # Chemical mixer web UI
+│   └── timer.html    # Development timer web UI
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
