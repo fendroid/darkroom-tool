@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Darkroom Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Libre+Baskerville:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0b;
+      --surface: #161614;
+      --border: #2a2a26;
+      --amber: #d4a843;
+      --amber-dim: #8a6d2a;
+      --amber-glow: rgba(212,168,67,0.12);
+      --red: #c0392b;
+      --green: #3B6D11;
+      --green-light: #C0DD97;
+      --text: #c8b88a;
+      --text-dim: #5a5040;
+      --mono: 'Share Tech Mono', monospace;
+      --serif: 'Libre Baskerville', serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.6;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .safelight {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, #ff6b35, #c0392b 50%, #5a1a10);
+      box-shadow: 0 0 20px rgba(192,57,43,0.6), 0 0 60px rgba(192,57,43,0.2);
+      margin: 0 auto 0.75rem;
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(192,57,43,0.6), 0 0 60px rgba(192,57,43,0.2); }
+      50%       { box-shadow: 0 0 28px rgba(192,57,43,0.8), 0 0 80px rgba(192,57,43,0.3); }
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-size: 1rem;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--amber);
+      letter-spacing: 0.05em;
+    }
+
+    .subtitle {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-top: 0.2rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 0.58rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Time input ── */
+    .time-inputs {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .time-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .time-field label {
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .time-field input {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--amber);
+      padding: 0.4rem;
+      outline: none;
+      width: 100%;
+      -moz-appearance: textfield;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .time-field input::-webkit-outer-spin-button,
+    .time-field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .time-field input:focus {
+      border-color: var(--amber-dim);
+      box-shadow: 0 0 0 2px var(--amber-glow);
+    }
+
+    .time-field input:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .time-sep {
+      font-family: var(--mono);
+      font-size: 2rem;
+      color: var(--text-dim);
+      padding-top: 18px;
+      user-select: none;
+    }
+
+    /* ── Display ── */
+    .display-card {
+      text-align: center;
+      padding: 2rem 1.5rem 1.5rem;
+    }
+
+    .countdown {
+      font-family: var(--mono);
+      font-size: 5rem;
+      font-weight: 400;
+      color: var(--amber);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      transition: color 0.4s;
+    }
+
+    .countdown.over { color: #e07060; }
+    .countdown.warning { color: #e09030; }
+
+    .status-text {
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-top: 0.75rem;
+      min-height: 1em;
+      transition: color 0.3s;
+    }
+
+    .status-text.running { color: #97C459; }
+    .status-text.over    { color: #e07060; }
+
+    .progress-wrap {
+      height: 3px;
+      background: var(--border);
+      margin-top: 1.25rem;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--amber-dim);
+      transition: width 0.6s linear, background 0.4s;
+    }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 0.7rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .btn:hover   { background: rgba(255,255,255,0.04); }
+    .btn:active  { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    .btn-start {
+      border-color: #3B6D11;
+      color: #97C459;
+    }
+    .btn-start:hover:not(:disabled) { background: rgba(97,196,89,0.08); }
+
+    .btn-stop {
+      border-color: #7a2020;
+      color: #e07060;
+    }
+    .btn-stop:hover:not(:disabled) { background: rgba(192,57,43,0.08); }
+
+    /* ── Event log ── */
+    .log-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+
+    .log-list li {
+      display: flex;
+      gap: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.72rem;
+    }
+
+    .log-list li:last-child { border-bottom: none; }
+
+    .log-time { color: var(--amber-dim); min-width: 48px; }
+    .log-msg  { color: var(--text-dim); flex: 1; }
+    .log-msg.ev1 { color: #97C459; }
+    .log-msg.ev2 { color: #d4a843; }
+    .log-msg.ev3 { color: #e07060; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.68rem;
+      color: var(--text-dim);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.56rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-align: center;
+    }
+
+    .nav-btn {
+      display: block;
+      width: 100%;
+      margin-top: 0.75rem;
+      padding: 0.85rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(212,168,67,0.06);
+      color: var(--amber-dim);
+      border-color: var(--amber-dim);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="safelight"></div>
+    <h1>Development Timer</h1>
+    <p class="subtitle">Darkroom · Analog Film</p>
+  </header>
+
+  <!-- Input -->
+  <div class="card">
+    <div class="card-title">Development time</div>
+    <div class="time-inputs">
+      <div class="time-field">
+        <label>Minutes</label>
+        <input type="number" id="inp-min" min="0" max="99" value="7" step="1">
+      </div>
+      <div class="time-sep">:</div>
+      <div class="time-field">
+        <label>Seconds</label>
+        <input type="number" id="inp-sec" min="0" max="59" value="30" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Display -->
+  <div class="card display-card">
+    <div class="countdown" id="display">7:30</div>
+    <div class="status-text" id="status-text">ready</div>
+    <div class="progress-wrap">
+      <div class="progress-fill" id="progress-fill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="btn btn-start" id="btn-start" onclick="timerStart()">▶ Start</button>
+    <button class="btn btn-stop"  id="btn-stop"  onclick="timerStop()"  disabled>■ Stop</button>
+    <button class="btn"           id="btn-reset" onclick="timerReset()">↺ Reset</button>
+  </div>
+
+  <!-- Legend -->
+  <div class="card">
+    <div class="card-title">Signal guide</div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#97C459"></div>
+        <span><strong style="color:#97C459">Beep 1</strong> — agitation reminder (at 30 s, then every 60 s)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#d4a843"></div>
+        <span><strong style="color:#d4a843">Beep 2</strong> — pour off warning (at 10 s remaining; then every 60 s if overdeveloping)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#e07060"></div>
+        <span><strong style="color:#e07060">Beep 3</strong> — end of development (at 0:00)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event log -->
+  <div class="card">
+    <div class="card-title">Event log</div>
+    <ul class="log-list" id="log-list">
+      <li><span class="log-time">—</span><span class="log-msg">no events yet</span></li>
+    </ul>
+  </div>
+
+  <a href="/" class="nav-btn">← &nbsp; Back to Mixer</a>
+
+  <footer>darkroom timer · web audio api · no server required</footer>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   AUDIO ENGINE
+   Three distinct beeps synthesised via Web Audio API.
+   No external dependencies, no server required.
+
+   beep1 — agitation reminder  : short double-pip, 880 Hz
+   beep2 — pour-off warning    : descending two-tone, 660→550 Hz
+   beep3 — end of development  : triple tone, descending, longer
+   ═══════════════════════════════════════════════════════════════ */
+const Audio = (() => {
+  let ctx = null;
+
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function tone(freq, startOffset, dur, vol, type, fadeOut) {
+    const c = getCtx();
+    const osc  = c.createOscillator();
+    const gain = c.createGain();
+    osc.connect(gain);
+    gain.connect(c.destination);
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, c.currentTime + startOffset);
+    gain.gain.setValueAtTime(0, c.currentTime + startOffset);
+    gain.gain.linearRampToValueAtTime(vol, c.currentTime + startOffset + 0.01);
+    gain.gain.setValueAtTime(vol, c.currentTime + startOffset + dur - (fadeOut || 0.05));
+    gain.gain.linearRampToValueAtTime(0, c.currentTime + startOffset + dur);
+    osc.start(c.currentTime + startOffset);
+    osc.stop(c.currentTime + startOffset + dur + 0.02);
+  }
+
+  return {
+    beep1() {
+      tone(880, 0.00, 0.10, 0.25, 'sine');
+      tone(880, 0.15, 0.10, 0.25, 'sine');
+    },
+    beep2() {
+      tone(660, 0.00, 0.18, 0.30, 'triangle');
+      tone(550, 0.22, 0.18, 0.30, 'triangle');
+    },
+    beep3() {
+      tone(440, 0.00, 0.25, 0.35, 'sine');
+      tone(440, 0.30, 0.25, 0.35, 'sine');
+      tone(330, 0.60, 0.55, 0.35, 'sine', 0.18);
+    }
+  };
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   TIMER ENGINE
+   Counts down to 0, fires audio/visual events, then continues
+   counting upward (negative = overdevelopment) until stopped.
+   ═══════════════════════════════════════════════════════════════ */
+const Timer = (() => {
+  let totalSecs      = 0;
+  let elapsed        = 0;
+  let handle         = null;
+  let running        = false;
+  let lastOverMinute = 0;
+
+  function fmt(s) {
+    const abs = Math.abs(s);
+    const m   = Math.floor(abs / 60);
+    const sec = abs % 60;
+    return (s < 0 ? '-' : '') + m + ':' + String(sec).padStart(2, '0');
+  }
+
+  function remaining() {
+    return totalSecs - elapsed;
+  }
+
+  function logEvent(evClass, msg) {
+    const list = document.getElementById('log-list');
+    if (list.querySelector('li span.log-time') &&
+        list.querySelector('li span.log-time').textContent === '—') {
+      list.innerHTML = '';
+    }
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="log-time">${fmt(remaining())}</span>` +
+                   `<span class="log-msg ${evClass}">${msg}</span>`;
+    list.prepend(li);
+  }
+
+  function tick() {
+    elapsed++;
+    const rem     = remaining();
+    const display = document.getElementById('display');
+    const fill    = document.getElementById('progress-fill');
+    const status  = document.getElementById('status-text');
+
+    display.textContent = fmt(rem);
+
+    if (rem > 0) {
+      /* Normal countdown */
+      const pct = Math.max(0, (rem / totalSecs) * 100);
+      fill.style.width      = pct + '%';
+      fill.style.background = rem <= 10 ? '#e07060' : '#8a6d2a';
+      display.classList.remove('over', 'warning');
+      if (rem <= 10) display.classList.add('warning');
+      status.className    = 'status-text running';
+      status.textContent  = 'developing';
+
+      /* Agitation reminders */
+      if (elapsed === 30) {
+        Audio.beep1(); logEvent('ev1', 'Stop agitation — let tank rest');
+      } else if (elapsed > 30 && elapsed % 60 === 0) {
+        Audio.beep1(); logEvent('ev1', 'Agitate (10 s)');
+      }
+
+      /* 10-second pour-off warning */
+      if (rem === 10) {
+        Audio.beep2(); logEvent('ev2', '10 s — prepare to pour off');
+      }
+
+    } else if (rem === 0) {
+      /* Exactly zero — end of development */
+      fill.style.width = '0%';
+      display.classList.remove('warning');
+      display.classList.add('over');
+      status.className   = 'status-text over';
+      status.textContent = 'overdeveloping';
+      Audio.beep3(); logEvent('ev3', 'End of development - no more end remainders');
+
+    } else {
+      /* Negative — overdevelopment */
+      fill.style.width      = '0%';
+      fill.style.background = '#7a2020';
+      display.classList.add('over');
+      status.className   = 'status-text over';
+      status.textContent = 'overdeveloping';
+
+      const overMin = Math.floor(Math.abs(rem) / 60);
+      if (overMin > 0 && overMin !== lastOverMinute) {
+        lastOverMinute = overMin;
+        Audio.beep2(); logEvent('ev2', 'Overdevelopment +' + overMin + ' min');
+      }
+    }
+  }
+
+  return {
+    start() {
+      if (running) return;
+      const m = parseInt(document.getElementById('inp-min').value) || 0;
+      const s = parseInt(document.getElementById('inp-sec').value) || 0;
+      totalSecs = m * 60 + s;
+      if (totalSecs <= 0) return;
+      elapsed        = 0;
+      lastOverMinute = 0;
+      running        = true;
+      document.getElementById('inp-min').disabled   = true;
+      document.getElementById('inp-sec').disabled   = true;
+      document.getElementById('btn-start').disabled = true;
+      document.getElementById('btn-stop').disabled  = false;
+      document.getElementById('status-text').className   = 'status-text running';
+      document.getElementById('status-text').textContent = 'developing';
+      document.getElementById('progress-fill').style.width      = '100%';
+      document.getElementById('progress-fill').style.background = '#8a6d2a';
+      handle = setInterval(tick, 1000);
+    },
+
+    stop() {
+      clearInterval(handle);
+      handle  = null;
+      running = false;
+      document.getElementById('inp-min').disabled   = false;
+      document.getElementById('inp-sec').disabled   = false;
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-stop').disabled  = true;
+      document.getElementById('status-text').className   = 'status-text';
+      document.getElementById('status-text').textContent = 'stopped';
+    },
+
+    reset() {
+      this.stop();
+      elapsed        = 0;
+      lastOverMinute = 0;
+      const m = parseInt(document.getElementById('inp-min').value) || 0;
+      const s = parseInt(document.getElementById('inp-sec').value) || 0;
+      document.getElementById('display').textContent = fmt(m * 60 + s);
+      document.getElementById('display').className   = 'countdown';
+      document.getElementById('progress-fill').style.width      = '100%';
+      document.getElementById('progress-fill').style.background = '#8a6d2a';
+      document.getElementById('status-text').className   = 'status-text';
+      document.getElementById('status-text').textContent = 'ready';
+      document.getElementById('log-list').innerHTML =
+        '<li><span class="log-time">—</span><span class="log-msg">no events yet</span></li>';
+    }
+  };
+})();
+
+function timerStart() { Timer.start(); }
+function timerStop()  { Timer.stop();  }
+function timerReset() { Timer.reset(); }
+
+document.getElementById('inp-min').addEventListener('change', timerReset);
+document.getElementById('inp-sec').addEventListener('change', timerReset);
+</script>
+</body>
+</html>
