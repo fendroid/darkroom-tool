@@ -557,7 +557,7 @@ const Timer = (() => {
       /* Agitation reminders */
       if (elapsed === 30) {
         Audio.beep1(); logEvent('ev1', 'Stop agitation — let tank rest');
-      } else if (elapsed > 30 && elapsed % 60 === 0) {
+      } else if (elapsed > 30 && (elapsed-30) % 60 === 0) {
         Audio.beep1(); logEvent('ev1', 'Agitate (10 s)');
       }
 

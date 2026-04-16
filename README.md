@@ -204,6 +204,12 @@ The calculation assumes all components have the same specific heat capacity as w
 
 ---
 
+## Acknowledgements
+
+Built with the help of [Claude](https://claude.ai) (Anthropic).
+
+---
+
 ## License
 
 MIT
